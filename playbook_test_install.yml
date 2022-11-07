@@ -1,0 +1,76 @@
+- name: Installing Redis-Server to Test Server
+  hosts: Test
+  become: yes
+  become_method: sudo
+
+  tasks:
+
+
+  - name: Enable Redis-Server
+    shell: apt install -y redis && systemctl enable redis-server
+
+  - name: Creating and Changing Ownership for log path of Redis
+    shell: mkdir -p /redis/redis_data && mkdir -p /etc/systemd/system/redis.service.d && mkdir -p /redis/redis_log && chown -R redis:redis /redis/* && chmod 750 /redis/* && chown -R redis:redis /etc/redis/
+
+  - lineinfile:
+      path: /etc/redis/redis.conf
+      line: 'bind {{ ansible_host }} '
+      regexp: 'bind 127.0.0.1 -::1'
+
+  - lineinfile:
+      path: /etc/redis/redis.conf
+      line: 'tcp-keepalive 60'
+      regexp: 'tcp-keepalive 300'
+
+  - lineinfile:
+      path: /etc/redis/redis.conf
+      line: 'requirepass {{ ProjectName }}_{{ Year }}_??!'
+      regexp: '# requirepass foobared'
+    
+  - lineinfile:
+      path: /etc/redis/redis.conf
+      line: 'logfile /redis/redis_log/redis-server.log'
+      regexp: 'logfile /var/log/redis/redis-server.log'
+
+  - lineinfile:
+      path: /etc/redis/redis.conf
+      line: 'dir /redis/redis_data'
+      regexp: 'dir /var/lib/redis'
+
+  - name: Change Redis Sentinel Master Config File
+    shell:
+      cmd: |
+        cat > /etc/systemd/system/redis.service.d/override.conf << EOF
+        [Service]
+        ReadWriteDirectories=/redis/redis_data
+        ReadWriteDirectories=/redis/redis_log
+        EOF  
+
+  - name: Restarting Redis-Server and Applying New Config
+    shell: systemctl daemon-reload && systemctl restart redis-server
+
+  - name: Change Redis-Server Log Rotate
+    shell:
+        cmd: |
+          cat > /etc/logrotate.d/redis-server << EOF
+          /redis/redis_log/*.log 
+          {
+            daily
+            missingok
+            copytruncate
+            rotate 15
+            maxage 15
+            compress
+            notifempty
+          }
+          EOF
+
+  - name: Config Cronjob for Redis Log Cleanup
+    cron:
+      name: "Redis Log Cleaning"
+      minute: "08"
+      hour: "10"
+      job: find /redis/redis_log/ -name "*.log" -type f -mtime +30 -exec rm -rf {} \;
+
+  - name: Restarting Logrotate
+    shell: systemctl restart logrotate

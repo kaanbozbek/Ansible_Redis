@@ -1,0 +1,3 @@
+redis_master_password: Dogus2022* 
+master_server_ip: 10.115.207.250
+redis_slave_password : Dogus2022*

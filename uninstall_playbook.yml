@@ -1,0 +1,17 @@
+- name: Uninstall Redis in Master
+  hosts: localhost
+  become: yes
+  become_method: sudo
+  tasks:
+     - name: Autoremove for Redis in Master
+       shell: apt autoremove -y --purge redis-server
+
+#master-slave ayarlaması erlang.cookie to same localhost in slave
+- name: Uninstall RabbitMQ in Slave
+  hosts: 10.115.207.250
+  become: yes
+  become_method: sudo
+  tasks:
+     - name: Autoremove for Redis in Slave
+       shell: apt autoremove -y --purge redis-server
+#remove all access to redis-server

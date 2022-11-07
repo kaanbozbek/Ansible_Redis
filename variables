@@ -1,0 +1,3 @@
+redis_master_password: -
+master_server_ip: -
+redis_slave_password : -
